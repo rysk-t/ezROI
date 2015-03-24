@@ -1,8 +1,7 @@
 function varargout = ezROI(varargin)
-% function varargout = ezROI()
-%    varagout
-%
-
+% function varargout = ezROI(varargin)
+%    varargin: image matrix MxN or MxNx3
+%    varagout: structure including results of circle detecion & imadjust
 
 gui_Singleton = 1;
 gui_State = struct('gui_Name',       mfilename, ...
@@ -11,6 +10,7 @@ gui_State = struct('gui_Name',       mfilename, ...
                    'gui_OutputFcn',  @ezROI_OutputFcn, ...
                    'gui_LayoutFcn',  [] , ...
                    'gui_Callback',   []);
+
 if nargin && ischar(varargin{1})
     gui_State.gui_Callback = str2func(varargin{1});
 end
@@ -22,7 +22,7 @@ else
 end
 % End initialization code - DO NOT EDIT
 
-% --- Executes just before ezROI is made visible.
+
 function ezROI_OpeningFcn(hObject, eventdata, handles, varargin)
 handles.output = hObject;
 handles.ls = 0;
@@ -31,18 +31,25 @@ handles.hs = 1;
 handles.cpos = [];
 handles.cr   = [];
 handles.c = [handles.cpos handles.cr];
-%if varargin > 0
-%	handles.img = varargin;
-%else
+if isempty(varargin)
+	disp('Load Example: coloredChips.png')
 	handles.img   = imread('coloredChips.png');
-%end
+else
+	disp('Load Mat')
+	handles.img = varargin{1};
+end
 
 if length(size(handles.img)) ==2
 	disp('gray')
+	img = handles.img;
+	img = img - min(img(:));
+	img = uint8(255*img/max(img(:)));
 	img(:,:,1) = handles.img;
 	img(:,:,2) = handles.img;
 	img(:,:,3) = handles.img;
 	handles.img = img;
+else
+	handles.img = double(handles.img)/double(max(handles.img(:)));	
 end	
 handles.RAW = handles.img;
 handles.imgre = handles.img;
@@ -54,27 +61,27 @@ handles.bg = uint8(zeros(size(handles.img)));
 set(handles.rSld, 'Value', double(handles.crRange+4))
 set(handles.rSld, 'Min', double(handles.crRange+1))
 set(handles.rSld, 'Max', double(max(size(handles.img))*0.25));
-
 imagesc(handles.img);	
 axis image
 
 guidata(hObject, handles);
 uiwait(handles.figure1);
 
-% --- Outputs from this function are returned to the command line.
+
 function varargout = ezROI_OutputFcn(hObject, eventdata, handles)
 out.imgre    = handles.img;
 out.cr       = handles.cr;
 out.cxyr     = get(handles.ROItab, 'data');
 out.contrast = [handles.ls handles.hs];
-% out.c
 varargout{1} = out;
 close
 
+
 function imgrePlot(handles)
 imagesc(handles.imgre);	
-handles.imgre = double(handles.imgre);% - double(handles.bg);
+handles.imgre = double(handles.imgre);
 axis image
+
 
 function detectCircle(handles)
 if get(handles.checkbox1, 'Value')
@@ -91,16 +98,13 @@ if get(handles.checkbox1, 'Value')
 		'LineWidth', 2.5, 'EdgeColor', 'r')
 	handles.c = [handles.cpos handles.crs];
 	set(handles.ROItab, 'data', handles.c);
-	set(handles.rlabel, 'String', ['r=' ...
-		num2str(...
-		int16(handles.cr)+[int16(-handles.crRange) int16(handles.crRange)])])
+	set(handles.rlabel, 'String', ['r:' num2str(int16(handles.cr))]);
 
 	hold off
 else
 end
 
 
-% --- Executes on button press in Load_btn.
 function Load_btn_Callback(hObject, eventdata, handles)
 [fN, fPath] = uigetfile({'*.tif'; '*.tiff'; '*.png'}, 'File Selector');
 handles.img = imread([fPath fN]);
@@ -118,22 +122,15 @@ detectCircle(handles)
 guidata(hObject, handles);
 
 
-% --- Executes on slider movement.
-function imadSld_h_Callback(hObject, eventdata, handles)
+function imadSld_h_Callback(hObject, eventdata, handles) %#ok<*INUSL>
 handles.hs = get(hObject, 'value');
-handles.imgre = imadjust(handles.img, [handles.ls, handles.hs]);
+handles.imgre = imadjust((handles.img), [handles.ls, handles.hs]);
 imgrePlot(handles);
 detectCircle(handles)
 guidata(hObject, handles);
 
 
-
 function imadSld_h_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to imadSld_h (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: slider controls usually have a light gray background.
 if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor',[.9 .9 .9]);
 end
@@ -145,7 +142,6 @@ handles.imgre = imadjust(handles.img, [handles.ls, handles.hs]);
 imgrePlot(handles);
 detectCircle(handles)
 guidata(hObject, handles);
-
 
 
 function imadSld_l_CreateFcn(hObject, eventdata, handles)
@@ -173,35 +169,19 @@ guidata(hObject, handles);
 hold off
 
 
-
 function rSld_Callback(hObject, eventdata, handles)
-% hObject    handle to rSld (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 handles.cr = get(hObject, 'Value');
 detectCircle(handles)
 guidata(hObject, handles);
 
-function rSld_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to rSld (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
 
-% Hint: slider controls usually have a light gray background.
+function rSld_CreateFcn(hObject, eventdata, handles)
 if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor',[.9 .9 .9]);
 end
 
-function rrange_Callback(hObject, eventdata, handles)
-% hObject    handle to rrange (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of rrange as text
-%        str2double(get(hObject,'String')) returns contents of rrange as a double
+function rrange_Callback(hObject, eventdata, handles)
 handles.crRange = str2double(get(handles.rrange, 'String'));
 set(handles.rSld, 'Value', double(handles.crRange+4))
 set(handles.rSld, 'Min', double(handles.crRange+1))
@@ -210,36 +190,51 @@ handles.crRange
 detectCircle(handles)
 guidata(hObject, handles);
 
-% --- Executes during object creation, after setting all properties.
-function rrange_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to rrange (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
 
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
+function rrange_CreateFcn(hObject, eventdata, handles)
+
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
 
 
-% --- Executes on button press in exit_btn.
-function varagout = exit_btn_Callback(hObject, eventdata, handles)
+function varagout = exit_btn_Callback(hObject, eventdata, handles) %#ok<*INUSD>
 uiresume();
 
 
-% --- Executes on button press in checkbox1.
+function autoCircDet_Callback(hObject, eventdata, handles)
+clear range
+range = str2double(get(handles.rrange, 'String'));
+range = int16([-range range]);
+radi  = int16(get(handles.rSld, 'Min')):int16(get(handles.rSld, 'Max'));
+i=0;
+h = waitbar(i, 'Searching ...');
+
+for i = 1:length(radi)/2
+	cent = imfindcircles(handles.imgre,  radi(i)+range, ...
+		'ObjectPolarity', 'bright');
+	cent2 = imfindcircles(handles.imgre, radi(i)+range, ...
+		'ObjectPolarity', 'dark');
+	
+	c(i) = size(cent,1) + size(cent2,1);
+	waitbar(i/(length(radi)/2), h)
+end
+
+delete(h)
+[hoge, maxRidx] = max(c); %#ok<ASGLU>
+maxRidx = median(maxRidx);
+maxR            = radi(maxRidx);
+set(handles.rSld, 'Value', maxR);
+handles.cr      = maxR;
+handles.crRange = range(2);
+detectCircle(handles);
+guidata(hObject, handles);
+
+
 function checkbox1_Callback(hObject, eventdata, handles)
-% hObject    handle to checkbox1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-
-% --- Executes on button press in bg_btn.
-function bg_btn_Callback(hObject, eventdata, handles)
-% hObject    handle to bg_btn (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-handles.bg = imopen(handles.img, strel('disk', 15));
-imgrePlot(handles)
-guidata(hObject, handles)
+if get(hObject,'Value')
+	detectCircle(handles);
+else
+	imgrePlot(handles)
+end
+guidata(hObject, handles);
