@@ -54,13 +54,13 @@ function ezROI_OpeningFcn(hObject, eventdata, handles, varargin)
 
 % Choose default command line output for ezROI
 handles.revice_btn.Value = false;
-
+set(gcf,'Pointer','crosshair')
 handles.Ctype = [];
 handles.output = hObject;
 handles.roitable.Data = [0 0];
 handles.cSize = 10;
 handles.cIdx = 0;
-
+handles.centers = [0];
 handles.color = ~colorcube(9);
 set(gca, 'YTick', []);
 set(gca, 'XTick', []);
@@ -156,8 +156,9 @@ if eventdata.Key==('z')
 	handles.bw(handles.cIdx) = [];
 	if handles.cIdx == 0;
 		handles.cIdx =1;
+		handles.clabel.String = num2str(handles.cIdx);
 	else
-		handles.cIdx =handles.cIdx -1; 
+		handles.cIdx =handles.cIdx; 
 	end
 elseif eventdata.Key==('r')
 	handles.revice_btn.Value = ~handles.revice_btn.Value;
@@ -167,6 +168,7 @@ elseif eventdata.Key==('d')
 	handles.c
 	handles.bw(x) = [];
 	handles.cIdx = length(handles.bw);
+	handles.clabel.String = num2str(handles.cIdx);
 elseif strfind('123456789', eventdata.Key)
 	handles.Ctype(handles.cIdx) = str2double(eventdata.Key);
 end
@@ -187,10 +189,21 @@ function figure1_WindowButtonDownFcn(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 % get(0,'PointerLocation')
-if handles.cIdx == 0
-	handles.cIdx = 1;
-end
-if handles.revice_btn.Value == true
+pos = round(get(handles.axes1,'CurrentPoint'));
+pos = [pos(1,1) pos(1,2)];
+flag1 = true;
+if handles.revice_btn.Value == true	
+	for i = 1:length(handles.bw)
+		handles.centers(1,i) = mean(handles.bw{i}(:,2));
+		handles.centers(2,i) = mean(handles.bw{i}(:,1));	
+		sum((handles.centers(:,i)-pos').^2);
+		if sum((handles.centers(:,i)-pos').^2) < 5^2
+			handles.cIdx = i;	
+			disp(['near:' num2str(handles.cIdx)]);			
+			break
+		end		
+	end	
+	plotRegions(hObject, handles)
 else
 	handles.cIdx = length(handles.bw)+1;
 end
@@ -199,10 +212,6 @@ imgadapt = handles.show;
 if length(size(handles.show))==3
 	imgadapt = mean(handles.show, 3);
 end
-
-pos = round(get(handles.axes1,'CurrentPoint'));
-pos = [pos(1,1) pos(1,2)];
-
 mask = zeros(size(handles.img));
 mask(pos(2)+(-handles.cSize:handles.cSize),...
 	pos(1)+(-handles.cSize:handles.cSize)) = 1;
@@ -212,6 +221,11 @@ bw = bw{1};
 handles.Ctype(handles.cIdx) = 1;
 handles.bw{handles.cIdx} = bw;
 plotRegions(hObject, handles)
+
+if handles.revice_btn.Value == true	&& length(handles.bw) >= handles.cIdx
+	plot(handles.bw{handles.cIdx}(:,2), handles.bw{handles.cIdx}(:,1), ...
+		'Color', handles.color(handles.Ctype(handles.cIdx),:), 'LineWidth', 5);
+end
 guidata(hObject, handles);
 
 
@@ -220,17 +234,18 @@ cla
 imagesc(handles.show, [0 1]);
 hold on; axis image;
 handles.roitable.Data = [0 0];
-for i = 1:length(handles.bw)	
+for i = 1:length(handles.bw)		
 	plot(handles.bw{i}(:,2), handles.bw{i}(:,1), ...
 		'Color', handles.color(handles.Ctype(i),:));
 	handles.roitable.Data(i,1) = round(mean(handles.bw{i}(:,2)));
 	handles.roitable.Data(i,2) = round(mean(handles.bw{i}(:,1)));
 	handles.roitable.Data(i,3) = handles.Ctype(i);
+	guidata(hObject, handles);
 end
 if handles.checkbox3.Value ==1
 	showIDs(handles);
 end
-
+handles.clabel.String = num2str(handles.cIdx);
 guidata(hObject, handles);
 
 
@@ -290,6 +305,7 @@ function roitable_CellSelectionCallback(hObject, eventdata, handles)
 
 if ~isempty(eventdata.Indices)
 	handles.cIdx = eventdata.Indices(1);	
+	handles.clabel.String = num2str(handles.cIdx);
 	plotRegions(hObject, handles);
 	if handles.cIdx ~= length(handles.bw);
 		handles.revice_btn.Value = true; hold on;
@@ -390,14 +406,19 @@ function roitable_KeyPressFcn(hObject, eventdata, handles)
 eventdata.Key
 if eventdata.Key==('z') || eventdata.Key==('d')
 	handles.bw(handles.cIdx) = [];
-	if handles.cIdx == 0;
+	if handles.cIdx <= 0;
 		handles.cIdx =1;
+		handles.clabel.String = num2str(handles.cIdx);
 	else
 		handles.cIdx =length(handles.bw)+1; 
+		handles.clabel.String = num2str(handles.cIdx);
 		handles.revice_btn.Value = false;
 	end
 elseif eventdata.Key==('r')
 	handles.revice_btn.Value = ~handles.revice_btn.Value;
+	if handles.cIdx < length(handles.bw);
+		handles.cIdx = length(handles.bw);
+	end
 elseif strfind('123456789', eventdata.Key)
 	handles.Ctype(handles.cIdx) = str2double(eventdata.Key);
 end
