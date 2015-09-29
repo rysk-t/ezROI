@@ -22,7 +22,7 @@ function varargout = ezROI(varargin)
 
 % Edit the above text to modify the response to help ezROI
 
-% Last Modified by GUIDE v2.5 29-Sep-2015 15:49:26
+% Last Modified by GUIDE v2.5 30-Sep-2015 00:14:30
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -62,6 +62,8 @@ handles.cSize = 12;
 handles.cIdx = 0;
 handles.centers = 0;
 handles.color = ~hsv(9);
+
+handles.alp   = 0.7; 
 set(gca, 'YTick', []);
 set(gca, 'XTick', []);
 
@@ -174,6 +176,25 @@ switch eventdata.Key
 		handles.bw(x) = [];
 		handles.cIdx = length(handles.bw);
 		handles.clabel.String = num2str(handles.cIdx);
+	case 'v'
+		roi_toggle_Callback(hObject, eventdata, handles);
+		if handles.roi_toggle.Value
+			bwl = zeros(size(handles.RAW));
+			bwl = mean(bwl, 3);
+			for i = 1:length(handles.bw)				
+				bwl = bwl + poly2mask(handles.bw{i}(:,2),...
+					handles.bw{i}(:,1),...
+					size(handles.img, 1), size(handles.img, 2));
+			end
+			bwl(~(bwl==0))=1;
+			plotRegions(hObject, handles)
+			hold on			
+			tmp = imagesc(bwl);hold off
+			alpha(tmp, handles.alp); axis image;
+			handles.roi_toggle.Value = ~handles.roi_toggle.Value;			
+		else			
+			handles.roi_toggle.Value = ~handles.roi_toggle.Value;
+		end				
 	case 'leftarrow'
 		handles.bw{handles.cIdx}(:,2) = handles.bw{handles.cIdx}(:,2)-1;
 	case 'rightarrow'
@@ -185,10 +206,12 @@ switch eventdata.Key
 end
 
 if strfind('123456789', eventdata.Key)
+	disp(eventdata.Key)
 	handles.Ctype(handles.cIdx) = str2double(eventdata.Key);
 end
-
-plotRegions(hObject, handles)
+if ~exist('tmp')
+	plotRegions(hObject, handles)
+end
 guidata(hObject, handles);
 
 % --- Executes on mouse press over axes background.
@@ -243,7 +266,7 @@ if pos(1) > 0 && pos(2) > 0 ...
 	 % 	mask(mask_y, mask_x) = 1;
 	 mask = makeRoundMask(pos, handles.cSize, size(handles.RAW));
 
-	maskd = activecontour(imgadapt, mask, 16, 'edge', 1);	
+	maskd = activecontour(imgadapt, mask, 24, 'edge', 1);	
 	bw = bwboundaries(maskd);	
 	
 	if length(bw) == 0
@@ -352,7 +375,7 @@ if ~isempty(eventdata.Indices)
 		maskc(:,:,1) = maskd;
 		maskc(:,:,2) = maskd*0;
 		maskc(:,:,3) = maskd;		
-		a = imagesc(maskc); alpha(a, 0.4);
+		a = imagesc(maskc); alpha(a, handles.alp);
 	end
 end
 handles.roitable.Enable='inactive';
@@ -440,7 +463,8 @@ function roitable_KeyPressFcn(hObject, eventdata, handles)
 %	Character: character interpretation of the key(s) that was pressed
 %	Modifier: name(s) of the modifier key(s) (i.e., control, shift) pressed
 % handles    structure with handles and user data (see GUIDATA)
-switch eventdata.Key
+key = eventdata.Key;
+switch key
 	case 'd' || 'z'
 		handles.bw(handles.cIdx) = [];
 		if handles.cIdx <= 0;
@@ -455,9 +479,45 @@ switch eventdata.Key
 		handles.revice_btn.Value = ~handles.revice_btn.Value;
 end
 
-if strfind('123456789', eventdata.Key)
+if strfind('123456789', key)	
 	handles.Ctype(handles.cIdx) = handles.Ctype(handles.cIdx);
 end
 
 plotRegions(hObject, handles)
 guidata(hObject, handles);
+
+function roiArea_toggle_Callback(hObject, eventdata, handles)
+
+% --- Executes on button press in roi_toggle.
+function roi_toggle_Callback(hObject, eventdata, handles)
+% hObject    handle to roi_toggle (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of roi_toggle
+if handles.roi_toggle.Value
+	bwl = zeros(size(handles.RAW));
+	bwl = mean(bwl, 3);
+	for i = 1:length(handles.bw)
+		
+		bwl = bwl + poly2mask(handles.bw{i}(:,2),...
+			handles.bw{i}(:,1),...
+			size(handles.img, 1), size(handles.img, 2));
+	end
+	bwl(~(bwl==0))=1;
+	tmp = imagesc(bwl);
+	alpha(tmp, handles.alp)
+else
+	plotRegions(hObject, handles)
+end
+axis image
+guidata(hObject, handles);
+
+% --- Executes on key press with focus on roi_toggle and none of its controls.
+function roi_toggle_KeyPressFcn(hObject, eventdata, handles)
+% hObject    handle to roi_toggle (see GCBO)
+% eventdata  structure with the following fields (see MATLAB.UI.CONTROL.UICONTROL)
+%	Key: name of the key that was pressed, in lower case
+%	Character: character interpretation of the key(s) that was pressed
+%	Modifier: name(s) of the modifier key(s) (i.e., control, shift) pressed
+% handles    structure with handles and user data (see GUIDATA)
