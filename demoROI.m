@@ -1,17 +1,24 @@
 close all;
 clear all;
-load example.ROI.mat
+f = uigetimagefile();
+if ~isempty(f)
+	ROI.RAW = double(imread(f));
+else
+	load example.ROI.mat
+end
 radi = 10;
 seD = strel('diamond',1);
 img = (ROI.RAW)*255;
-img = img(:,:,2);
+if size(img, 3)==3
+	img = img(:,:,2);
+end
 simg = size(img);
 
 img = img - min(img(:));
 imagesc(img); axis image
 figure; 
 
-subplot(121)
+
 [a, b] = FastPeakFind(img, 128, [4 4]*radi, 2, 2);
 Mi = find(img(:)>0.8*max(img(:))); 
 Mmat = zeros(size(img));
@@ -24,7 +31,7 @@ imagesc(Mmat); axis image;
 Mx = [];
 My = [];
 clear reg
-subplot(122)
+
 imagesc(img); colorbar; hold on;
 for i = 1:length(satuBw)
 	reg = poly2mask(...

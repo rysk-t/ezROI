@@ -22,7 +22,7 @@ function varargout = ezROI(varargin)
 
 % Edit the above text to modify the response to help ezROI
 
-% Last Modified by GUIDE v2.5 27-Sep-2015 05:50:13
+% Last Modified by GUIDE v2.5 29-Sep-2015 15:49:26
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -58,10 +58,10 @@ set(gcf,'Pointer','crosshair')
 handles.Ctype = [];
 handles.output = hObject;
 handles.roitable.Data = [0 0];
-handles.cSize = 10;
+handles.cSize = 12;
 handles.cIdx = 0;
-handles.centers = [0];
-handles.color = ~colorcube(9);
+handles.centers = 0;
+handles.color = ~hsv(9);
 set(gca, 'YTick', []);
 set(gca, 'XTick', []);
 
@@ -152,26 +152,42 @@ function figure1_KeyPressFcn(hObject, eventdata, handles)
 % handles: structure with handles and user data (see GUIDATA)??
 eventdata.Key
 
-if eventdata.Key==('z')
-	handles.bw(handles.cIdx) = [];
-	if handles.cIdx == 0;
-		handles.cIdx =1;
-		handles.clabel.String = num2str(handles.cIdx);
-	else
-		handles.cIdx =handles.cIdx; 
-	end
-elseif eventdata.Key==('r')
-	handles.revice_btn.Value = ~handles.revice_btn.Value;
-elseif eventdata.Key==('d')	
-	handles.bw(handles.cIdx) = [];
-	x = find(cellfun('isempty', handles.bw));
-	handles.c
-	handles.bw(x) = [];
+if handles.cIdx > length(handles.bw)
 	handles.cIdx = length(handles.bw);
-	handles.clabel.String = num2str(handles.cIdx);
-elseif strfind('123456789', eventdata.Key)
+end
+
+switch eventdata.Key
+	case 'z'
+		handles.bw(handles.cIdx) = [];
+		if handles.cIdx == 0;
+			handles.cIdx =1;
+			handles.clabel.String = num2str(handles.cIdx);
+		else
+			handles.cIdx =handles.cIdx+1;
+		end
+	case 'r'
+		handles.revice_btn.Value = ~handles.revice_btn.Value;
+	case 'd'	
+		handles.bw(handles.cIdx) = [];
+		x = find(cellfun('isempty', handles.bw));
+		handles.c
+		handles.bw(x) = [];
+		handles.cIdx = length(handles.bw);
+		handles.clabel.String = num2str(handles.cIdx);
+	case 'leftarrow'
+		handles.bw{handles.cIdx}(:,2) = handles.bw{handles.cIdx}(:,2)-1;
+	case 'rightarrow'
+		handles.bw{handles.cIdx}(:,2) = handles.bw{handles.cIdx}(:,2)+1;
+	case 'uparrow'
+		handles.bw{handles.cIdx}(:,1) = handles.bw{handles.cIdx}(:,1)-1;
+	case 'downarrow'
+		handles.bw{handles.cIdx}(:,1) = handles.bw{handles.cIdx}(:,1)+1;
+end
+
+if strfind('123456789', eventdata.Key)
 	handles.Ctype(handles.cIdx) = str2double(eventdata.Key);
 end
+
 plotRegions(hObject, handles)
 guidata(hObject, handles);
 
@@ -212,19 +228,39 @@ imgadapt = handles.show;
 if length(size(handles.show))==3
 	imgadapt = mean(handles.show, 3);
 end
-mask = zeros(size(handles.img));
-mask(pos(2)+(-handles.cSize:handles.cSize),...
-	pos(1)+(-handles.cSize:handles.cSize)) = 1;
-maskd = activecontour(imgadapt, mask, 16, 'edge', 0.8);
-bw = bwboundaries(maskd);
-bw = bw{1};
+
+if pos(1) > 0 && pos(2) > 0 ...
+		 && pos(1) < size(handles.RAW,1) ...
+		 && pos(2) < size(handles.RAW,2)
+	 %
+	 % 	mask = zeros(size(handles.img));
+	 % 	mask_x = pos(1)+(-handles.cSize:handles.cSize);
+	 % 	mask_y = pos(2)+(-handles.cSize:handles.cSize);
+	 % 	mask_x(mask_x<1) = 1;
+	 % 	mask_y(mask_y<1) = 1;
+	 % 	mask_x(mask_x>size(handles.RAW,1)) = size(handles.RAW,1);
+	 % 	mask_y(mask_y>size(handles.RAW,2)) = size(handles.RAW,2);
+	 % 	mask(mask_y, mask_x) = 1;
+	 mask = makeRoundMask(pos, handles.cSize, size(handles.RAW));
+
+	maskd = activecontour(imgadapt, mask, 16, 'edge', 1);	
+	bw = bwboundaries(maskd);	
+	
+	if length(bw) == 0
+		disp('Active Contour cannot find edge: circle mask defined')
+		bw = bwboundaries(mask);
+		bw = bw{1};		
+	else
+		bw = bw{1};		
+	end
+end
 handles.Ctype(handles.cIdx) = 1;
 handles.bw{handles.cIdx} = bw;
 plotRegions(hObject, handles)
 
 if handles.revice_btn.Value == true	&& length(handles.bw) >= handles.cIdx
 	plot(handles.bw{handles.cIdx}(:,2), handles.bw{handles.cIdx}(:,1), ...
-		'Color', handles.color(handles.Ctype(handles.cIdx),:), 'LineWidth', 5);
+		'Color', handles.color(handles.Ctype(handles.cIdx),:), 'LineWidth', 3);
 end
 guidata(hObject, handles);
 
@@ -236,7 +272,7 @@ hold on; axis image;
 handles.roitable.Data = [0 0];
 for i = 1:length(handles.bw)		
 	plot(handles.bw{i}(:,2), handles.bw{i}(:,1), ...
-		'Color', handles.color(handles.Ctype(i),:));
+		'Color', handles.color(handles.Ctype(i),:), 'LineWidth', 2);
 	handles.roitable.Data(i,1) = round(mean(handles.bw{i}(:,2)));
 	handles.roitable.Data(i,2) = round(mean(handles.bw{i}(:,1)));
 	handles.roitable.Data(i,3) = handles.Ctype(i);
@@ -261,11 +297,11 @@ maskd = poly2mask(handles.bw{handles.cIdx}(:,2),...
 	handles.bw{handles.cIdx}(:,1),...
 	size(handles.img, 1), size(handles.img, 2));
 if eventdata.VerticalScrollCount < 0
-se = strel('disk', 1); 
+se = strel('disk', 2, 8); 
 erodedBW = bwboundaries(imerode(maskd,se));
 
 elseif eventdata.VerticalScrollCount > 0
-	se = strel('disk',1 ); 
+	se = strel('disk', 2, 8); 
 	erodedBW = bwboundaries(imdilate(maskd,se));
 end
 
@@ -304,6 +340,7 @@ function roitable_CellSelectionCallback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 if ~isempty(eventdata.Indices)
+	eventdata.Indices(1)
 	handles.cIdx = eventdata.Indices(1);	
 	handles.clabel.String = num2str(handles.cIdx);
 	plotRegions(hObject, handles);
@@ -403,24 +440,24 @@ function roitable_KeyPressFcn(hObject, eventdata, handles)
 %	Character: character interpretation of the key(s) that was pressed
 %	Modifier: name(s) of the modifier key(s) (i.e., control, shift) pressed
 % handles    structure with handles and user data (see GUIDATA)
-eventdata.Key
-if eventdata.Key==('z') || eventdata.Key==('d')
-	handles.bw(handles.cIdx) = [];
-	if handles.cIdx <= 0;
-		handles.cIdx =1;
-		handles.clabel.String = num2str(handles.cIdx);
-	else
-		handles.cIdx =length(handles.bw)+1; 
-		handles.clabel.String = num2str(handles.cIdx);
-		handles.revice_btn.Value = false;
-	end
-elseif eventdata.Key==('r')
-	handles.revice_btn.Value = ~handles.revice_btn.Value;
-	if handles.cIdx < length(handles.bw);
-		handles.cIdx = length(handles.bw);
-	end
-elseif strfind('123456789', eventdata.Key)
-	handles.Ctype(handles.cIdx) = str2double(eventdata.Key);
+switch eventdata.Key
+	case 'd' || 'z'
+		handles.bw(handles.cIdx) = [];
+		if handles.cIdx <= 0;
+			handles.cIdx = 1;
+			handles.clabel.String = num2str(handles.cIdx);
+		else
+			handles.cIdx =length(handles.bw)+1;
+			handles.clabel.String = num2str(handles.cIdx);
+			handles.revice_btn.Value = false;
+		end
+	case 'r'
+		handles.revice_btn.Value = ~handles.revice_btn.Value;
 end
+
+if strfind('123456789', eventdata.Key)
+	handles.Ctype(handles.cIdx) = handles.Ctype(handles.cIdx);
+end
+
 plotRegions(hObject, handles)
 guidata(hObject, handles);
