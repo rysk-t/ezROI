@@ -24,7 +24,6 @@
  - varag{3} = cellType e.g. ones(length(B))
 
 ## Dependency
-I tested it only
  - Image processing toolbox
  - [FastPeakFind.m](http://www.mathworks.com/matlabcentral/fileexchange/37388-fast-2d-peak-finder)
 
