@@ -58,7 +58,7 @@ set(gcf,'Pointer','crosshair')
 handles.Ctype = [];
 handles.output = hObject;
 handles.roitable.Data = [0 0];
-handles.cSize = 12;
+handles.cSize = 5; % cell size adapted by wheel
 handles.cIdx = 0;
 handles.centers = 0;
 handles.color = ~hsv(9);
@@ -266,7 +266,7 @@ if pos(1) > 0 && pos(2) > 0 ...
 	 % 	mask(mask_y, mask_x) = 1;
 	 mask = makeRoundMask(pos, handles.cSize, size(handles.RAW));
 
-	maskd = activecontour(imgadapt, mask, 24, 'edge', 1);	
+	maskd = activecontour(imgadapt, mask, 16, 'edge', 1);	
 	bw = bwboundaries(maskd);	
 	
 	if length(bw) == 0
@@ -320,12 +320,13 @@ maskd = poly2mask(handles.bw{handles.cIdx}(:,2),...
 	handles.bw{handles.cIdx}(:,1),...
 	size(handles.img, 1), size(handles.img, 2));
 if eventdata.VerticalScrollCount < 0
-se = strel('disk', 2, 8); 
-erodedBW = bwboundaries(imerode(maskd,se));
-
+	se = strel('disk', 2, 8);
+	erodedBW = bwboundaries(imerode(maskd,se));
+	handles.cSize = handles.cSize - 1;
 elseif eventdata.VerticalScrollCount > 0
 	se = strel('disk', 2, 8); 
 	erodedBW = bwboundaries(imdilate(maskd,se));
+	handles.cSize = handles.cSize +1;
 end
 
 if ~isempty(erodedBW)
